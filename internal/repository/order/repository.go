@@ -67,6 +67,45 @@ func (r *OrderRepository) GetByNumber(number string) (*model.Order, error) {
 	return order, nil
 }
 
+// Получение всех заказов пользователя по userID
+func (r *OrderRepository) GetAllByUserID(userID int) ([]*model.Order, error) {
+	ctx, cancel := context.WithTimeout(r.ctx, 5*time.Second)
+	defer cancel()
+
+	query := `
+		SELECT id, number, status, accrual, uploaded_at, user_id
+		FROM orders
+		WHERE user_id = $1
+		ORDER BY uploaded_at ASC
+	`
+
+	rows, err := r.db.QueryContext(ctx, query, userID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var orders []*model.Order
+	for rows.Next() {
+		order := &model.Order{}
+		if err := rows.Scan(&order.ID, &order.Number, &order.Status, &order.Accrual, &order.UploadedAt, &order.UserID); err != nil {
+			return nil, err
+		}
+		orders = append(orders, order)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+
+	if len(orders) == 0 {
+		return nil, database.ErrNotFound
+	}
+
+	return orders, nil
+}
+
+
 // Создание заказа
 func (r *OrderRepository) CreateOrder(number string, userID int) (*model.Order, error) {
 	order := &model.Order{}
@@ -76,7 +115,7 @@ func (r *OrderRepository) CreateOrder(number string, userID int) (*model.Order, 
 
 	query := `
 		INSERT INTO orders (number, status, accrual, user_id)
-		VALUES ($1, $2, 0, $4)
+		VALUES ($1, $2, 0, $3)
 		RETURNING id, number, status, accrual, uploaded_at, user_id
 	`
 

@@ -16,6 +16,7 @@ import (
 	"github.com/Alexey-zaliznuak/gofermart/internal/repository/database"
 	"github.com/Alexey-zaliznuak/gofermart/internal/repository/order"
 	"github.com/Alexey-zaliznuak/gofermart/internal/repository/user"
+	"github.com/Alexey-zaliznuak/gofermart/internal/repository/withdraw"
 	"github.com/Alexey-zaliznuak/gofermart/internal/service"
 	"go.uber.org/zap"
 )
@@ -58,12 +59,18 @@ func main() {
 		logger.Log.Fatal(err.Error())
 	}
 
-	userService := service.NewUserService(userRepository, cfg)
+	withdrawRepository, err := withdraw.NewWithdrawRepository(context.Background(), cfg, db)
+	if err != nil {
+		logger.Log.Fatal(err.Error())
+	}
+
+	userService := service.NewUserService(userRepository, withdrawRepository, cfg)
 	orderService := service.NewOrderService(orderRepository, cfg)
+	withdrawService := service.NewWithdrawService(withdrawRepository, cfg)
 
 	router := handler.NewRouter()
 	authService := service.NewAuthService(cfg)
-	handler.RegisterRoutes(router, userService, orderService, authService, db)
+	handler.RegisterRoutes(router, userService, orderService, withdrawService, authService, db)
 	handler.RegisterAppHandlerRoutes(router, db)
 
 	// Server process

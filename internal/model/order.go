@@ -17,21 +17,14 @@ type Order struct {
 	Number string      `json:"number"` // index, unique
 	Status OrderStatus `json:"status"`
 
-	Accrual *int `json:"accrual,omitempty"` // nullable
+	Accrual *int64 `json:"accrual,omitempty"` // nullable
 
 	UploadedAt time.Time `json:"uploaded_at"`
 
 	UserID int `json:"user_id"`
 }
 
-type GetOrdersResponse []OrderResponse
-
-type OrderResponse struct {
-	Number     string `json:"number"`
-	Status     string `json:"status"`
-	Accrual    *int   `json:"accrual,omitempty"`
-	UploadedAt string `json:"uploaded_at"` // RFC3339
-}
+type GetOrdersResponse []*Order
 
 type AccrualResponse struct {
 	Order   string `json:"order"`

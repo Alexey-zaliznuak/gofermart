@@ -6,8 +6,8 @@ type User struct {
 	Username     string `json:"username"`
 	PasswordHash string `json:"password_hash"`
 
-	Balance  int `json:"balance"`  // in kopecks
-	Withdraw int `json:"withdraw"` // in kopecks
+	Balance  int64 `json:"balance"`  // in kopecks
+	Withdraw int64 `json:"withdraw"` // in kopecks
 }
 
 type RegisterUserRequest struct {

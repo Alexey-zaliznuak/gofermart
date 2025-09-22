@@ -15,6 +15,11 @@ tasks:
       - go build -o {{.MAIN}} {{.MAIN}}
       - '{{ .MAIN }}/{{ .BINARY_NAME }}'
 
+  a:
+    desc: "Собрать и сразу запустить с параметрами"
+    cmds:
+      - './cmd/accrual/accrual_windows_amd64'
+
   build:
     desc: "Собрать бинарник"
     cmds:
