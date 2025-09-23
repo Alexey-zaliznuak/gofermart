@@ -74,7 +74,7 @@ func (service *OrderService) StartWorker() {
 
 		if resp.StatusCode() == http.StatusTooManyRequests {
 			logger.Log.Info("Превышено количество запросов к системе расчета начислений баллов лояльности")
-			time.Sleep(time.Second * 60)
+			time.Sleep(time.Minute)
 			continue
 		}
 
