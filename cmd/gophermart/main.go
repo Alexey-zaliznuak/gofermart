@@ -68,6 +68,8 @@ func main() {
 	orderService := service.NewOrderService(orderRepository, cfg)
 	withdrawService := service.NewWithdrawService(withdrawRepository, cfg)
 
+	go orderService.StartWorker()
+
 	router := handler.NewRouter()
 	authService := service.NewAuthService(cfg)
 	handler.RegisterRoutes(router, userService, orderService, withdrawService, authService, db)

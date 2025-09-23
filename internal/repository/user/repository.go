@@ -136,6 +136,32 @@ func (r *UserRepository) Withdraw(amount int64, userID int) (*model.User, error)
 	return user, nil
 }
 
+// увеличение баланса
+func (r *UserRepository) AddBalance(amount int64, userID int) (*model.User, error) {
+	user := &model.User{}
+
+	ctx, cancel := context.WithTimeout(r.ctx, 5*time.Second)
+	defer cancel()
+
+	// Обновляем баланс и withdraw
+	query := `
+		UPDATE users
+		SET balance = balance + $1
+		WHERE id = $2
+		RETURNING id, username, password_hash, balance, withdraw
+	`
+
+	row := r.db.QueryRowContext(ctx, query, amount, userID)
+
+	err := row.Scan(&user.ID, &user.Username, &user.PasswordHash, &user.Balance, &user.Withdraw)
+
+	if err != nil {
+		return nil, err
+	}
+
+	return user, nil
+}
+
 func NewUserRepository(ctx context.Context, config *config.AppConfig, db *sql.DB) (*UserRepository, error) {
 	return &UserRepository{
 		db:     db,

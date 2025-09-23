@@ -29,5 +29,5 @@ type GetOrdersResponse []*Order
 type AccrualResponse struct {
 	Order   string `json:"order"`
 	Status  string `json:"status"`
-	Accrual *int   `json:"accrual,omitempty"`
+	Accrual *int64   `json:"accrual,omitempty"`
 }
