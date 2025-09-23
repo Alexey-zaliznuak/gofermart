@@ -68,16 +68,16 @@ func main() {
 	orderService := service.NewOrderService(orderRepository, cfg)
 	withdrawService := service.NewWithdrawService(withdrawRepository, cfg)
 
-	go orderService.StartWorker()
+	// Server process
+	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
+	defer stop()
+
+	go orderService.StartWorker(ctx)
 
 	router := handler.NewRouter()
 	authService := service.NewAuthService(cfg)
 	handler.RegisterRoutes(router, userService, orderService, withdrawService, authService, db)
 	handler.RegisterAppHandlerRoutes(router, db)
-
-	// Server process
-	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
-	defer stop()
 
 	srv := &http.Server{Addr: cfg.Server.Address, Handler: router}
 

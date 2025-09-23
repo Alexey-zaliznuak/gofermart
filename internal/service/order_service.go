@@ -1,6 +1,7 @@
 package service
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -52,72 +53,79 @@ func (service *OrderService) GetAll(userID int) (model.GetOrdersResponse, error)
 	return service.repository.GetAllByUserID(userID)
 }
 
-func (service *OrderService) StartWorker() {
+func (service *OrderService) StartWorker(ctx context.Context) {
 	for {
-		order, err := service.repository.GetFirstNotProcessed()
+		select {
+		case <-ctx.Done():
+			logger.Log.Info("Worker stopping...")
+			return
 
-		if err == database.ErrNotFound {
-			logger.Log.Info("Необработанные заказы не найдены")
-			time.Sleep(time.Second)
-			continue
-		}
+		default:
+			order, err := service.repository.GetFirstNotProcessed()
 
-		client := resty.New()
-
-		resp, err := client.R().Get(fmt.Sprintf("%s/api/orders/%s", service.AppConfig.AccrualSystemAddress, order.Number))
-
-		if err != nil {
-			logger.Log.Error("Ошибка при попытке получить информацию по заказу")
-			time.Sleep(time.Second)
-			continue
-		}
-
-		if resp.StatusCode() == http.StatusTooManyRequests {
-			logger.Log.Info("Превышено количество запросов к системе расчета начислений баллов лояльности")
-			time.Sleep(time.Minute)
-			continue
-		}
-
-		if resp.StatusCode() == http.StatusNoContent {
-			logger.Log.Info("По данному заказу не найдено никакой информации")
-			time.Sleep(time.Second)
-			continue
-		}
-
-		if resp.StatusCode() != http.StatusOK {
-			logger.Log.Info("Неожиданный статус код")
-			continue
-		}
-
-		payload := &model.AccrualResponse{}
-
-		err = json.Unmarshal(resp.Body(), payload)
-
-		if err != nil {
-			logger.Log.Error("Ошибка обработки ответа от системы расчета начислений баллов лояльности")
-			time.Sleep(time.Second)
-			continue
-		}
-
-		logger.Log.Info("Получен ответ от системы расчета начислений баллов лояльности", zap.Any("payload", payload))
-
-		order.Status = payload.Status
-		if payload.Accrual != nil {
-			order.Accrual = payload.Accrual
-
-			_, err := service.userRepository.AddBalance(*payload.Accrual, order.UserID)
-
-			if err != nil {
-				logger.Log.Error("Ошибка начисления баланса за заказ")
+			if err == database.ErrNotFound {
+				logger.Log.Info("Необработанные заказы не найдены")
+				time.Sleep(time.Second)
 				continue
 			}
-		}
 
-		err = service.repository.Update(order)
+			client := resty.New()
 
-		if err != nil {
-			logger.Log.Error("Ошибка сохранения результата от системы расчета начислений баллов лояльности")
-			continue
+			resp, err := client.R().Get(fmt.Sprintf("%s/api/orders/%s", service.AppConfig.AccrualSystemAddress, order.Number))
+
+			if err != nil {
+				logger.Log.Error("Ошибка при попытке получить информацию по заказу")
+				time.Sleep(time.Second)
+				continue
+			}
+
+			if resp.StatusCode() == http.StatusTooManyRequests {
+				logger.Log.Info("Превышено количество запросов к системе расчета начислений баллов лояльности")
+				time.Sleep(time.Minute)
+				continue
+			}
+
+			if resp.StatusCode() == http.StatusNoContent {
+				logger.Log.Info("По данному заказу не найдено никакой информации")
+				time.Sleep(time.Second)
+				continue
+			}
+
+			if resp.StatusCode() != http.StatusOK {
+				logger.Log.Info("Неожиданный статус код")
+				continue
+			}
+
+			payload := &model.AccrualResponse{}
+
+			err = json.Unmarshal(resp.Body(), payload)
+
+			if err != nil {
+				logger.Log.Error("Ошибка обработки ответа от системы расчета начислений баллов лояльности")
+				time.Sleep(time.Second)
+				continue
+			}
+
+			logger.Log.Info("Получен ответ от системы расчета начислений баллов лояльности", zap.Any("payload", payload))
+
+			order.Status = payload.Status
+			if payload.Accrual != nil {
+				order.Accrual = payload.Accrual
+
+				_, err := service.userRepository.AddBalance(*payload.Accrual, order.UserID)
+
+				if err != nil {
+					logger.Log.Error("Ошибка начисления баланса за заказ")
+					continue
+				}
+			}
+
+			err = service.repository.Update(order)
+
+			if err != nil {
+				logger.Log.Error("Ошибка сохранения результата от системы расчета начислений баллов лояльности")
+				continue
+			}
 		}
 	}
 }
